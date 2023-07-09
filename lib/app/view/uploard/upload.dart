@@ -57,10 +57,10 @@ class _UploadScreenState extends State<UploadScreen> {
     setState(() {
       _isUploading = true;
     });
+
     final currentUserUuid = await getCurrentUserUuid();
     final currentUserName = await getCurrentUserName();
-    final profileImageUrl =
-        await getProfileImageUrl(currentUserUuid.toString());
+    final profileImageUrl = await getProfileImageUrl();
     Logger().d(profileImageUrl);
 
     try {
@@ -86,6 +86,25 @@ class _UploadScreenState extends State<UploadScreen> {
         'url': video.url,
       });
 
+      // Add video URL to myVideoList array in the user's document
+      final userDocRef = FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUserUuid.toString());
+      final userDocSnapshot = await userDocRef.get();
+
+      if (userDocSnapshot.exists) {
+        // If myVideoList array exists, add video URL to it
+        final myVideoList =
+            userDocSnapshot.data()?['myVideoList'] as List<dynamic>? ?? [];
+        myVideoList.add(video.url);
+        await userDocRef.update({'myVideoList': myVideoList});
+      } else {
+        // If myVideoList array does not exist, create a new array with video URL
+        await userDocRef.set({
+          'myVideoList': [video.url]
+        });
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Video uploaded successfully')),
       );
@@ -93,6 +112,7 @@ class _UploadScreenState extends State<UploadScreen> {
       setState(() {
         _videoFile = null;
         _videoPlayerController?.dispose();
+        _videoPlayerController = null; // Set to null after disposing
         _videoTitleController.clear();
         _songNameController.clear();
       });

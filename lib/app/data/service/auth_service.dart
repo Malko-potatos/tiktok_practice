@@ -93,20 +93,28 @@ Future<String?> getCurrentUserUuid() async {
   User? user = FirebaseAuth.instance.currentUser;
   if (user != null) {
     await user.reload(); // 사용자 정보 갱신
-    user = FirebaseAuth.instance.currentUser; // 갱신된 사용자 정보 가져오기
+    user = FirebaseAuth.instance.currentUser;
     return user!.uid;
   }
   return null;
 }
 
-Future<String?> getProfileImageUrl(String uuid) async {
+Future<String?> getProfileImageUrl() async {
+  User? user = FirebaseAuth.instance.currentUser;
+  String uid = user!.uid;
   try {
-    DocumentSnapshot snapshot = await FirebaseFirestore.instance
+    QuerySnapshot querySnapshot = await FirebaseFirestore.instance
         .collection('users')
-        .where('uuid', isEqualTo: uuid)
+        .where('uuid', isEqualTo: uid)
         .limit(1)
-        .get()
-        .then((querySnapshot) => querySnapshot.docs.first);
+        .get();
+
+    if (querySnapshot.docs.isEmpty) {
+      print('No user found with uuid: $uid');
+      return null;
+    }
+
+    DocumentSnapshot snapshot = querySnapshot.docs.first;
 
     if (snapshot.exists) {
       String? imageUrl = snapshot.get("image_url");
@@ -115,6 +123,5 @@ Future<String?> getProfileImageUrl(String uuid) async {
   } catch (e) {
     print('Error getting profile image URL: $e');
   }
-
   return null;
 }

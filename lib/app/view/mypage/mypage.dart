@@ -1,140 +1,237 @@
+import 'dart:io';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:tiktok_practice/app/data/service/auth_service.dart';
+import 'package:tiktok_practice/app/data/service/post_service.dart';
+import 'package:tiktok_practice/app/util/video_thumbnail.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);
 
   @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<Widget>(
-      future: _buildProfileWidget(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return CircularProgressIndicator();
-        } else if (snapshot.hasError) {
-          return Text('Error: ${snapshot.error}');
-        } else {
-          return snapshot.data ?? Container();
-        }
-      },
-    );
+  _ProfileScreenState createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  late String currentUserName;
+  late String currentUserUuid;
+  late String profileImageUrl;
+  late List<String> videoUrls;
+
+  @override
+  void initState() {
+    super.initState();
+    initializeUserDetails();
   }
 
-//TODO 파이어베이스에서 불러온 정보 초기화
-  Future<Widget> _buildProfileWidget() async {
-    // Your asynchronous logic to fetch data and build the profile widget
-    final currentUserName = await getCurrentUserName();
-    final currentUserUuid = await getCurrentUserUuid();
-    final profileImageUrl =
-        await getProfileImageUrl(currentUserUuid.toString());
+  Future<void> initializeUserDetails() async {
+    currentUserName = (await getCurrentUserName())!;
+    currentUserUuid = (await getCurrentUserUuid())!;
+    profileImageUrl = getProfile().toString();
+    videoUrls = await getMyVideoList();
+    setState(() {}); // to refresh the widget after data is fetched
+  }
 
+  Future<String?> getProfile() async {
+    try {
+      String? currentUserUuid = await getCurrentUserUuid();
+      if (currentUserUuid == null) {
+        print('Error getting current user UUID');
+        return null;
+      }
+      String? profileImageUrl = await getProfileImageUrl();
+      return profileImageUrl;
+    } catch (e) {
+      print('Error getting profile: $e');
+      return null;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return SafeArea(
       child: Container(
         color: Colors.white,
         child: Column(
           children: [
             Container(
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                   border: Border(bottom: BorderSide(color: Colors.black12))),
-              padding: EdgeInsets.symmetric(vertical: 12, horizontal: 20),
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Icon(Icons.person_add_alt_1_outlined),
-                  Text(
-                    currentUserName.toString(),
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                  const Icon(Icons.person_add_alt_1_outlined),
+                  FutureBuilder<String?>(
+                    future: getCurrentUserName(),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const CircularProgressIndicator();
+                      } else if (snapshot.hasError) {
+                        return Text('Error: ${snapshot.error}');
+                      } else {
+                        return Text(
+                          snapshot.data ?? '',
+                          style: const TextStyle(
+                              fontSize: 15, fontWeight: FontWeight.bold),
+                        );
+                      }
+                    },
                   ),
-                  Icon(Icons.more_horiz)
+                  const Icon(Icons.more_horiz)
                 ],
               ),
             ),
             SingleChildScrollView(
               child: Column(
                 children: [
-                  SizedBox(height: 15),
+                  const SizedBox(height: 15),
+                  FutureBuilder<String?>(
+                    future: getProfileImageUrl(),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const SizedBox(
+                          width: 50,
+                          height: 50,
+                          child: CircularProgressIndicator(),
+                        );
+                      } else if (snapshot.hasError) {
+                        return const Icon(Icons.error);
+                      } else {
+                        return ClipOval(
+                          child: CachedNetworkImage(
+                            fit: BoxFit.cover,
+                            imageUrl: snapshot.data ?? '',
+                            height: 100.0,
+                            width: 100.0,
+                            placeholder: (context, url) => const SizedBox(
+                              width: 50,
+                              height: 50,
+                              child: CircularProgressIndicator(),
+                            ),
+                            errorWidget: (context, url, error) =>
+                                const Icon(Icons.error),
+                          ),
+                        );
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  FutureBuilder<String?>(
+                    future: getCurrentUserName(),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const CircularProgressIndicator();
+                      } else if (snapshot.hasError) {
+                        return Text('Error: ${snapshot.error}');
+                      } else {
+                        return Text(
+                          '@${snapshot.data ?? ''}',
+                          style: const TextStyle(
+                              fontSize: 15, fontWeight: FontWeight.bold),
+                        );
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 20),
+                  const Divider(),
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      ClipOval(
-                        child: CachedNetworkImage(
-                          fit: BoxFit.cover,
-                          imageUrl: profileImageUrl.toString(),
-                          height: 100.0,
-                          width: 100.0,
-                          placeholder: (context, url) =>
-                              CircularProgressIndicator(),
-                          errorWidget: (context, url, error) =>
-                              Icon(Icons.error),
-                        ),
+                      Column(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          const Icon(Icons.menu),
+                          const SizedBox(
+                            height: 7,
+                          ),
+                          Container(
+                            color: Colors.black,
+                            height: 2,
+                            width: 55,
+                          )
+                        ],
+                      ),
+                      Column(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          const Icon(
+                            Icons.favorite_border,
+                            color: Colors.black26,
+                          ),
+                          const SizedBox(
+                            height: 7,
+                          ),
+                          Container(
+                            color: Colors.transparent,
+                            height: 2,
+                            width: 55,
+                          )
+                        ],
+                      ),
+                      Column(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          const Icon(
+                            Icons.lock_outline,
+                            color: Colors.black26,
+                          ),
+                          const SizedBox(
+                            height: 7,
+                          ),
+                          Container(
+                            color: Colors.transparent,
+                            height: 2,
+                            width: 55,
+                          )
+                        ],
                       ),
                     ],
                   ),
-                  SizedBox(height: 10),
-                  Text(
-                    '@${currentUserName.toString()}',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-                  ),
-                  SizedBox(height: 20),
-                  Container(
-                    height: 45,
-                    decoration: BoxDecoration(
-                        border: Border.all(color: Colors.black12)),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        Column(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            Icon(Icons.menu),
-                            SizedBox(
-                              height: 7,
+                  FutureBuilder<List<String>>(
+                    future: getMyVideoList(),
+                    builder: (BuildContext context,
+                        AsyncSnapshot<List<String>> snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const CircularProgressIndicator();
+                      } else if (snapshot.hasError) {
+                        return Text('Error: ${snapshot.error}');
+                      } else {
+                        if (snapshot.data!.isEmpty) {
+                          return const Center(child: Text("표시할 비디오가 없습니다"));
+                        } else {
+                          return GridView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            gridDelegate:
+                                const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 4, // for 3 items in a row
+                              crossAxisSpacing: 4.0,
+                              mainAxisSpacing: 4.0,
                             ),
-                            Container(
-                              color: Colors.black,
-                              height: 2,
-                              width: 55,
-                            )
-                          ],
-                        ),
-                        Column(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            Icon(
-                              Icons.favorite_border,
-                              color: Colors.black26,
-                            ),
-                            SizedBox(
-                              height: 7,
-                            ),
-                            Container(
-                              color: Colors.transparent,
-                              height: 2,
-                              width: 55,
-                            )
-                          ],
-                        ),
-                        Column(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            Icon(
-                              Icons.lock_outline,
-                              color: Colors.black26,
-                            ),
-                            SizedBox(
-                              height: 7,
-                            ),
-                            Container(
-                              color: Colors.transparent,
-                              height: 2,
-                              width: 55,
-                            )
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
+                            itemCount: snapshot.data!.length,
+                            itemBuilder: (BuildContext context, int index) {
+                              return FutureBuilder<String>(
+                                future: createThumbnailFromVideoUrl(
+                                    snapshot.data![index]),
+                                builder: (context, snapshot) {
+                                  if (snapshot.connectionState ==
+                                      ConnectionState.waiting) {
+                                    return const CircularProgressIndicator();
+                                  } else if (snapshot.hasError) {
+                                    return Text('Error: ${snapshot.error}');
+                                  } else {
+                                    return Image.file(File(snapshot.data!));
+                                  }
+                                },
+                              );
+                            },
+                          );
+                        }
+                      }
+                    },
+                  )
                 ],
               ),
             ),

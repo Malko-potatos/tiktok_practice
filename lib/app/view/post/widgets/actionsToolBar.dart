@@ -158,7 +158,11 @@ class _ActionsToolbarState extends State<ActionsToolbar>
           borderRadius: BorderRadius.circular(10000.0),
           child: CachedNetworkImage(
             imageUrl: userPic,
-            placeholder: (context, url) => CircularProgressIndicator(),
+            placeholder: (context, url) => SizedBox(
+              width: 50,
+              height: 50,
+              child: CircularProgressIndicator(),
+            ),
             errorWidget: (context, url, error) => Icon(Icons.error),
           ),
         ),
@@ -186,7 +190,11 @@ class _ActionsToolbarState extends State<ActionsToolbar>
               borderRadius: BorderRadius.circular(10000.0),
               child: CachedNetworkImage(
                 imageUrl: userPic,
-                placeholder: (context, url) => CircularProgressIndicator(),
+                placeholder: (context, url) => SizedBox(
+                  width: 50,
+                  height: 50,
+                  child: CircularProgressIndicator(),
+                ),
                 errorWidget: (context, url, error) => Icon(Icons.error),
               ),
             ),

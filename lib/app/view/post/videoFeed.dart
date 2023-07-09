@@ -11,7 +11,11 @@ Widget feedVideos() {
     builder: (context, snapshot) {
       if (snapshot.connectionState == ConnectionState.waiting) {
         return Center(
-          child: CircularProgressIndicator(),
+          child: SizedBox(
+            width: 50,
+            height: 50,
+            child: CircularProgressIndicator(),
+          ),
         );
       } else if (snapshot.hasError) {
         return Center(
